@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinding Ucapan Interaktif</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Reset & Basic Setup */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+
+        /* Container Utama */
+        .container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Tampilan Ucapan Featured (Muncul 10 detik) */
+        #featured-ucapan {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px 60px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 80%;
+            max-width: 800px;
+        }
+        #featured-ucapan.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+        #featured-ucapan .nama {
+            font-family: 'Pacifico', cursive;
+            font-size: 3rem;
+            color: #fca311;
+            margin-bottom: 10px;
+        }
+        #featured-ucapan .ucapan-text {
+            font-size: 1.8rem;
+            line-height: 1.5;
+        }
+        #featured-ucapan .emoticon {
+            font-size: 4rem;
+            display: inline-block;
+            animation: bounce 1s infinite;
+        }
+
+        /* Tampilan Running Text */
+        .running-text-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .running-text-item {
+            position: absolute;
+            white-space: nowrap;
+            font-size: 1.5rem;
+            color: rgba(224, 224, 224, 0.6);
+            animation: moveRightToLeft linear infinite;
+            will-change: transform;
+        }
+
+        /* Tombol untuk membuka form */
+        #open-form-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #fca311;
+            color: #14213d;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 101;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        #open-form-btn:hover {
+            transform: scale(1.05);
+        }
+        #open-form-btn:disabled {
+            background-color: #888;
+            cursor: not-allowed;
+        }
+
+        /* Modal Form Input */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: #14213d;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            transform: scale(0.8);
+            transition: all 0.3s;
+            position: relative;
+        }
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+        .modal-content h2 {
+            margin-bottom: 20px;
+            font-family: 'Pacifico', cursive;
+            color: #fca311;
+        }
+        .modal-content input, .modal-content textarea {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border: 2px solid #e5e5e5;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 1rem;
+        }
+        .modal-content .emoticon-selector {
+            margin-bottom: 20px;
+        }
+        .modal-content .emoticon-selector span {
+            font-size: 2rem;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: transform 0.2s;
+        }
+        .modal-content .emoticon-selector span:hover, .modal-content .emoticon-selector span.selected {
+            transform: scale(1.5);
+        }
+        .modal-content button[type="submit"] {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #fca311;
+            color: #14213d;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        /* Notifikasi Error */
+        #error-notification {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #e53935; /* Merah untuk error */
+            color: white;
+            text-align: center;
+            padding: 12px;
+            z-index: 1000;
+            display: none; /* Sembunyi secara default */
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Animasi */
+        @keyframes moveRightToLeft {
+            from { transform: translateX(100vw); }
+            to { transform: translateX(-100%); }
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            60% { transform: translateY(-15px); }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Notifikasi Error akan muncul di sini -->
+    <div id="error-notification"></div>
+
+    <div class="container">
+        <!-- Ucapan yang baru masuk akan tampil di sini -->
+        <div id="featured-ucapan">
+            <div id="featured-emoticon" class="emoticon"></div>
+            <h1 id="featured-nama" class="nama"></h1>
+            <p id="featured-text" class="ucapan-text"></p>
+        </div>
+
+        <!-- Semua ucapan akan berjalan di sini -->
+        <div class="running-text-container" id="running-text-container"></div>
+    </div>
+
+    <!-- Tombol untuk membuka form -->
+    <button id="open-form-btn">Kirim Ucapan!</button>
+
+    <!-- Form Input (Modal) -->
+    <div class="modal-overlay" id="form-modal">
+        <div class="modal-content">
+            <button id="close-modal-btn">&times;</button>
+            <h2>Kirim Ucapanmu!</h2>
+            <form id="ucapan-form">
+                <input type="text" id="nama-input" placeholder="Nama Kamu" required>
+                <textarea id="ucapan-input" rows="4" placeholder="Tulis ucapanmu di sini..." required></textarea>
+                <div class="emoticon-selector">
+                    <p>Pilih Emoticon:</p>
+                    <span data-emoji="✨" class="selected">✨</span>
+                    <span data-emoji="🎉">🎉</span>
+                    <span data-emoji="💖">💖</span>
+                    <span data-emoji="🥳">🥳</span>
+                    <span data-emoji="👍">👍</span>
+                </div>
+                <button type="submit" id="submit-btn">Kirim!</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // =============================================================
+        // KONFIGURASI
+        // =============================================================
+        // !!! URL SUDAH DIGANTI SESUAI INFO DARI ABANG !!!
+        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
+        const SCRIPT_URL_POST = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
+
+
+        // =============================================================
+        // ELEMEN DOM
+        // =============================================================
+        const featuredUcapan = document.getElementById('featured-ucapan');
+        const featuredNama = document.getElementById('featured-nama');
+        const featuredText = document.getElementById('featured-text');
+        const featuredEmoticon = document.getElementById('featured-emoticon');
+        const runningTextContainer = document.getElementById('running-text-container');
+        const errorNotification = document.getElementById('error-notification');
+
+        const openFormBtn = document.getElementById('open-form-btn');
+        const formModal = document.getElementById('form-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const ucapanForm = document.getElementById('ucapan-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const emoticonSelectors = document.querySelectorAll('.emoticon-selector span');
+
+        let allUcapan = []; // Menyimpan semua ucapan yang sudah diambil
+        let lastTimestamp = null; // Untuk melacak ucapan terbaru
+        let selectedEmoticon = '✨';
+
+
+        // =============================================================
+        // FUNGSI-FUNGSI
+        // =============================================================
+
+        // Fungsi untuk menampilkan notifikasi error
+        function showError(message) {
+            errorNotification.textContent = message;
+            errorNotification.style.display = 'block';
+        }
+
+        // Fungsi untuk menampilkan ucapan featured
+        function showFeatured(ucapan) {
+            featuredNama.textContent = ucapan.nama;
+            featuredText.textContent = ucapan.ucapan;
+            featuredEmoticon.textContent = ucapan.emoticon;
+            featuredUcapan.classList.add('show');
+
+            // Sembunyikan setelah 10 detik
+            setTimeout(() => {
+                featuredUcapan.classList.remove('show');
+            }, 10000);
+        }
+
+        // Fungsi untuk membuat satu running text
+        function createRunningText(ucapan) {
+            const item = document.createElement('div');
+            item.className = 'running-text-item';
+            item.textContent = `${ucapan.nama}: ${ucapan.ucapan} ${ucapan.emoticon}`;
+            
+            // Atur posisi vertikal dan durasi animasi secara acak
+            const randomTop = Math.random() * 90;
+            const randomDuration = Math.random() * 10 + 15; // Durasi 15-25 detik
+            item.style.top = `${randomTop}%`;
+            item.style.animationDuration = `${randomDuration}s`;
+            
+            runningTextContainer.appendChild(item);
+
+            // Hapus elemen setelah selesai animasi untuk menjaga performa
+            setTimeout(() => {
+                item.remove();
+            }, randomDuration * 1000);
+        }
+
+        // Fungsi untuk memunculkan running text secara acak dan terus menerus
+        function spawnRandomRunningText() {
+            if (allUcapan.length === 0) return; // Jangan lakukan apa-apa jika belum ada ucapan
+
+            // Ambil ucapan acak dari daftar
+            const randomIndex = Math.floor(Math.random() * allUcapan.length);
+            const randomUcapan = allUcapan[randomIndex];
+            createRunningText(randomUcapan);
+        }
+
+        // Fungsi untuk mengambil data dari Google Sheet
+        async function fetchData(isInitial = false) {
+            try {
+                const response = await fetch(SCRIPT_URL_GET);
+                const result = await response.json();
+
+                if (result.status === 'sukses' && result.data.length > 0) {
+                    allUcapan = result.data; // Update daftar ucapan
+                    const latestUcapan = allUcapan[0]; // Data sudah di-reverse dari script
+
+                    // Cek jika ada ucapan baru untuk ditampilkan sebagai featured
+                    if (latestUcapan.timestamp !== lastTimestamp) {
+                        lastTimestamp = latestUcapan.timestamp;
+                        showFeatured(latestUcapan);
+                    }
+                }
+                return true; // Mengindikasikan fetch berhasil
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+                return false; // Mengindikasikan fetch gagal
+            }
+        }
+        
+        // Fungsi untuk mengirim data ke Google Sheet
+        async function postData(e) {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Mengirim...';
+
+            const data = {
+                nama: document.getElementById('nama-input').value,
+                ucapan: document.getElementById('ucapan-input').value,
+                emoticon: selectedEmoticon
+            };
+
+            try {
+                // Kirim data ke backend
+                await fetch(SCRIPT_URL_POST, {
+                    method: 'POST',
+                    mode: 'no-cors', // Penting untuk Google Apps Script
+                    body: JSON.stringify(data)
+                });
+                
+                alert('Ucapan berhasil dikirim! Akan segera tampil.');
+                ucapanForm.reset();
+                formModal.classList.remove('show');
+                
+                // Ambil data terbaru dan langsung tampilkan
+                const success = await fetchData();
+                if (success && allUcapan.length > 0) {
+                    showFeatured(allUcapan[0]);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Gagal mengirim ucapan. Coba lagi.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Kirim!';
+            }
+        }
+
+        // =============================================================
+        // EVENT LISTENERS
+        // =============================================================
+        openFormBtn.addEventListener('click', () => formModal.classList.add('show'));
+        closeModalBtn.addEventListener('click', () => formModal.classList.remove('show'));
+        ucapanForm.addEventListener('submit', postData);
+
+        emoticonSelectors.forEach(span => {
+            span.addEventListener('click', () => {
+                emoticonSelectors.forEach(s => s.classList.remove('selected'));
+                span.classList.add('selected');
+                selectedEmoticon = span.getAttribute('data-emoji');
+            });
+        });
+
+        // =============================================================
+        // INISIALISASI
+        // =============================================================
+        async function initializeApp() {
+            // Cek apakah URL sudah dikonfigurasi
+            if (SCRIPT_URL_GET.includes("URL_APPS_SCRIPT_GET_DISINI")) {
+                showError("KESALAHAN KONFIGURASI: URL Google Apps Script belum diatur!");
+                openFormBtn.disabled = true;
+                return;
+            }
+
+            // Ambil data awal
+            const initialFetchSuccess = await fetchData();
+
+            if (initialFetchSuccess) {
+                // Jika berhasil, mulai tampilkan running text secara terus-menerus
+                setInterval(spawnRandomRunningText, 3000); // Munculkan 1 teks baru setiap 3 detik
+
+                // Atur interval untuk mengambil update data dari sheet setiap 30 detik
+                setInterval(fetchData, 30000);
+            } else {
+                showError("Gagal memuat data awal. Coba refresh halaman.");
+                openFormBtn.disabled = true;
+            }
+        }
+
+        // Jalankan aplikasi saat halaman dimuat
+        initializeApp();
+
+    </script>
+</body>
+</html>
