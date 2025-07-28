@@ -6,19 +6,31 @@
     <title>Dinding Ucapan Interaktif</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Poppins', sans-serif;
-            background: #1a1a2e;
+            /* Background akan diatur oleh JavaScript */
+            background-color: #1a1a2e;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             color: #e0e0e0;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             text-align: center;
+        }
+        .main-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: white;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            text-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
         }
         .container { width: 100%; height: 100vh; position: relative; }
         #featured-ucapan {
@@ -26,11 +38,11 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(20, 33, 61, 0.8);
             padding: 40px 60px;
             border-radius: 20px;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(252, 163, 17, 0.5);
             z-index: 100;
             opacity: 0;
             visibility: hidden;
@@ -55,7 +67,8 @@
             position: absolute;
             white-space: nowrap;
             font-size: 1.5rem;
-            color: rgba(224, 224, 224, 0.6);
+            color: rgba(224, 224, 224, 0.8);
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
             animation: moveRightToLeft linear infinite;
             will-change: transform;
         }
@@ -67,11 +80,12 @@
         }
         @keyframes moveRightToLeft {
             from { transform: translateX(100vw); }
-            to { transform: translateX(-100%); }
+            to { transform: translateX(-150%); } /* Dibuat lebih jauh agar hilang sempurna */
         }
     </style>
 </head>
 <body>
+    <h1 class="main-title">Interactive Wishing Wall</h1>
     <div id="error-notification"></div>
     <div class="container">
         <div id="featured-ucapan">
@@ -82,8 +96,16 @@
     </div>
 
     <script>
+        // =============================================================
+        // KONFIGURASI TAMPILAN
+        // =============================================================
+        // Ganti URL ini dengan link gambar background Abang. Kosongkan jika ingin warna solid.
+        const BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1504221507732-00153c945043?q=80&w=2070&auto=format&fit=crop"; 
         const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
 
+        // =============================================================
+        // ELEMEN DOM & STATE
+        // =============================================================
         const featuredUcapan = document.getElementById('featured-ucapan');
         const featuredNama = document.getElementById('featured-nama');
         const featuredText = document.getElementById('featured-text');
@@ -92,6 +114,14 @@
 
         let allUcapan = [];
         let lastTimestamp = null;
+
+        // Sistem Jalur untuk Running Text (Anti Tumpuk)
+        const NUM_LANES = 12; // Jumlah jalur vertikal di layar
+        let lanes = new Array(NUM_LANES).fill(0); // 0 berarti jalur bebas
+
+        // =============================================================
+        // FUNGSI-FUNGSI UTAMA
+        // =============================================================
 
         function showError(message) {
             errorNotification.textContent = message;
@@ -107,23 +137,50 @@
             }, 10000);
         }
 
-        function createRunningText(ucapan) {
+        function createRunningText(ucapan, laneIndex) {
             const item = document.createElement('div');
             item.className = 'running-text-item';
             item.textContent = `${ucapan.nama}: ${ucapan.ucapan}`;
-            const randomTop = Math.random() * 90;
-            const randomDuration = Math.random() * 10 + 15;
-            item.style.top = `${randomTop}%`;
+            
+            // Atur posisi vertikal berdasarkan jalur yang didapat
+            const topPosition = (laneIndex / NUM_LANES) * 85 + 10; // Posisi top antara 10% dan 95%
+            item.style.top = `${topPosition}%`;
+
+            const randomDuration = Math.random() * 15 + 20; // Durasi 20-35 detik
             item.style.animationDuration = `${randomDuration}s`;
+            
             runningTextContainer.appendChild(item);
             setTimeout(() => item.remove(), randomDuration * 1000);
         }
 
         function spawnRandomRunningText() {
             if (allUcapan.length === 0) return;
-            const randomIndex = Math.floor(Math.random() * allUcapan.length);
-            const randomUcapan = allUcapan[randomIndex];
-            createRunningText(randomUcapan);
+
+            // Cari jalur yang kosong
+            let availableLane = -1;
+            const shuffledLanes = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
+            
+            for (const i of shuffledLanes) {
+                if (lanes[i] === 0) {
+                    availableLane = i;
+                    break;
+                }
+            }
+
+            if (availableLane !== -1) {
+                // Tandai jalur sedang dipakai
+                lanes[availableLane] = 1; 
+
+                // Ambil ucapan acak dari daftar
+                const randomIndex = Math.floor(Math.random() * allUcapan.length);
+                const randomUcapan = allUcapan[randomIndex];
+                createRunningText(randomUcapan, availableLane);
+
+                // Bebaskan jalur setelah beberapa saat agar tidak langsung diisi
+                setTimeout(() => {
+                    lanes[availableLane] = 0;
+                }, 4000); // Jeda 4 detik sebelum jalur bisa dipakai lagi
+            }
         }
 
         async function fetchData() {
@@ -137,7 +194,6 @@
 
                     if (latestUcapan.timestamp !== lastTimestamp) {
                         lastTimestamp = latestUcapan.timestamp;
-                        // HANYA TAMPILKAN JIKA OPSI DICENTANG
                         if (latestUcapan.tampilkanBesar) {
                             showFeatured(latestUcapan);
                         }
@@ -151,13 +207,19 @@
         }
 
         async function initializeApp() {
+            // Atur background
+            if (BACKGROUND_IMAGE_URL) {
+                document.body.style.backgroundImage = `url('${BACKGROUND_IMAGE_URL}')`;
+            }
+
             if (SCRIPT_URL_GET.includes("URL_APPS_SCRIPT_GET_DISINI")) {
                 showError("KESALAHAN KONFIGURASI: URL Google Apps Script belum diatur!");
                 return;
             }
+            
             const initialFetchSuccess = await fetchData();
             if (initialFetchSuccess) {
-                setInterval(spawnRandomRunningText, 3000);
+                setInterval(spawnRandomRunningText, 2000); // Munculkan 1 teks baru setiap 2 detik
                 setInterval(fetchData, 15000); // Cek data baru setiap 15 detik
             } else {
                 showError("Gagal memuat data awal. Coba refresh halaman.");
