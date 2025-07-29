@@ -7,11 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Poppins', sans-serif;
-            /* Background akan diatur oleh JavaScript */
             background-color: #1a1a2e;
             background-size: cover;
             background-position: center;
@@ -72,15 +72,60 @@
             animation: moveRightToLeft linear infinite;
             will-change: transform;
         }
+        #carousel {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            overflow-x: auto;
+            gap: 16px;
+            padding: 16px;
+        }
+        .carousel-item {
+            flex: 0 0 auto;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 16px;
+            min-width: 200px;
+            max-width: 300px;
+        }
         #error-notification {
-            position: fixed; top: 0; left: 0; width: 100%;
-            background-color: #e53935; color: white; text-align: center;
-            padding: 12px; z-index: 1000; display: none;
-            font-size: 1rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #e53935;
+            color: white;
+            text-align: center;
+            padding: 12px;
+            z-index: 1000;
+            display: none;
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: #fca311;
+            color: #14213d;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #ffb84d;
         }
         @keyframes moveRightToLeft {
             from { transform: translateX(100vw); }
-            to { transform: translateX(-150%); } /* Dibuat lebih jauh agar hilang sempurna */
+            to { transform: translateX(-150%); }
         }
     </style>
 </head>
@@ -88,40 +133,28 @@
     <h1 class="main-title">Interactive Wishing Wall</h1>
     <div id="error-notification"></div>
     <div class="container">
-        <div id="featured-ucapan">
+        <div id="featured-ucapan" role="alert" aria-live="polite">
             <h1 id="featured-nama" class="nama"></h1>
             <p id="featured-text" class="ucapan-text"></p>
         </div>
         <div class="running-text-container" id="running-text-container"></div>
+        <div id="carousel"></div>
     </div>
+    <button onclick="showNextUcapan()">Ucapan Berikutnya</button>
 
     <script>
-        // =============================================================
-        // KONFIGURASI TAMPILAN
-        // =============================================================
-        // Ganti URL ini dengan link gambar background Abang. Kosongkan jika ingin warna solid.
-        const BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1504221507732-00153c945043?q=80&w=2070&auto=format&fit=crop"; 
-        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
-
-        // =============================================================
-        // ELEMEN DOM & STATE
-        // =============================================================
+        const BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1504221507732-00153c945043?q=80&w=2070&auto=format&fit=crop";
+        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL doGet
         const featuredUcapan = document.getElementById('featured-ucapan');
         const featuredNama = document.getElementById('featured-nama');
         const featuredText = document.getElementById('featured-text');
         const runningTextContainer = document.getElementById('running-text-container');
         const errorNotification = document.getElementById('error-notification');
-
+        const carousel = document.getElementById('carousel');
         let allUcapan = [];
         let lastTimestamp = null;
-
-        // Sistem Jalur untuk Running Text (Anti Tumpuk)
-        const NUM_LANES = 12; // Jumlah jalur vertikal di layar
-        let lanes = new Array(NUM_LANES).fill(0); // 0 berarti jalur bebas
-
-        // =============================================================
-        // FUNGSI-FUNGSI UTAMA
-        // =============================================================
+        const NUM_LANES = 12;
+        let lanes = new Array(NUM_LANES).fill(0);
 
         function showError(message) {
             errorNotification.textContent = message;
@@ -132,98 +165,94 @@
             featuredNama.textContent = ucapan.nama;
             featuredText.textContent = ucapan.ucapan;
             featuredUcapan.classList.add('show');
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
             setTimeout(() => {
                 featuredUcapan.classList.remove('show');
             }, 10000);
+        }
+
+        function showNextUcapan() {
+            if (allUcapan.length > 0) {
+                const randomUcapan = allUcapan[Math.floor(Math.random() * allUcapan.length)];
+                showFeatured(randomUcapan);
+            }
         }
 
         function createRunningText(ucapan, laneIndex) {
             const item = document.createElement('div');
             item.className = 'running-text-item';
             item.textContent = `${ucapan.nama}: ${ucapan.ucapan}`;
-            
-            // Atur posisi vertikal berdasarkan jalur yang didapat
-            const topPosition = (laneIndex / NUM_LANES) * 85 + 10; // Posisi top antara 10% dan 95%
+            const topPosition = (laneIndex / NUM_LANES) * 85 + 10;
             item.style.top = `${topPosition}%`;
-
-            const randomDuration = Math.random() * 15 + 20; // Durasi 20-35 detik
+            const randomDuration = Math.random() * 15 + 20;
             item.style.animationDuration = `${randomDuration}s`;
-            
             runningTextContainer.appendChild(item);
             setTimeout(() => item.remove(), randomDuration * 1000);
         }
 
         function spawnRandomRunningText() {
             if (allUcapan.length === 0) return;
-
-            // Cari jalur yang kosong
             let availableLane = -1;
             const shuffledLanes = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
-            
             for (const i of shuffledLanes) {
                 if (lanes[i] === 0) {
                     availableLane = i;
                     break;
                 }
             }
-
             if (availableLane !== -1) {
-                // Tandai jalur sedang dipakai
-                lanes[availableLane] = 1; 
-
-                // Ambil ucapan acak dari daftar
+                lanes[availableLane] = 1;
                 const randomIndex = Math.floor(Math.random() * allUcapan.length);
-                const randomUcapan = allUcapan[randomIndex];
-                createRunningText(randomUcapan, availableLane);
-
-                // Bebaskan jalur setelah beberapa saat agar tidak langsung diisi
-                setTimeout(() => {
-                    lanes[availableLane] = 0;
-                }, 4000); // Jeda 4 detik sebelum jalur bisa dipakai lagi
+                createRunningText(allUcapan[randomIndex], availableLane);
+                setTimeout(() => lanes[availableLane] = 0, 4000);
             }
+        }
+
+        function updateCarousel() {
+            if (allUcapan.length === 0) return;
+            carousel.innerHTML = allUcapan.slice(0, 5).map(ucapan => `
+                <div class="carousel-item">
+                    <p class="font-bold">${ucapan.nama}</p>
+                    <p>${ucapan.ucapan}</p>
+                </div>
+            `).join("");
         }
 
         async function fetchData() {
             try {
                 const response = await fetch(SCRIPT_URL_GET);
                 const result = await response.json();
-
                 if (result.status === 'sukses' && result.data.length > 0) {
                     allUcapan = result.data;
                     const latestUcapan = allUcapan[0];
-
-                    if (latestUcapan.timestamp !== lastTimestamp) {
+                    if (latestUcapan.timestamp !== lastTimestamp && latestUcapan.tampilkanBesar) {
                         lastTimestamp = latestUcapan.timestamp;
-                        if (latestUcapan.tampilkanBesar) {
-                            showFeatured(latestUcapan);
-                        }
+                        showFeatured(latestUcapan);
                     }
+                    updateCarousel();
+                    errorNotification.style.display = 'none';
+                    return true;
                 }
-                return true;
+                return false;
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
+                showError("Gagal memuat data. Menggunakan cache...");
                 return false;
             }
         }
 
         async function initializeApp() {
-            // Atur background
             if (BACKGROUND_IMAGE_URL) {
                 document.body.style.backgroundImage = `url('${BACKGROUND_IMAGE_URL}')`;
             }
-
             if (SCRIPT_URL_GET.includes("URL_APPS_SCRIPT_GET_DISINI")) {
                 showError("KESALAHAN KONFIGURASI: URL Google Apps Script belum diatur!");
                 return;
             }
-            
-            const initialFetchSuccess = await fetchData();
-            if (initialFetchSuccess) {
-                setInterval(spawnRandomRunningText, 2000); // Munculkan 1 teks baru setiap 2 detik
-                setInterval(fetchData, 15000); // Cek data baru setiap 15 detik
-            } else {
-                showError("Gagal memuat data awal. Coba refresh halaman.");
-            }
+            await fetchData();
+            setInterval(spawnRandomRunningText, 2000);
+            setInterval(fetchData, 30000);
+            setInterval(updateCarousel, 10000);
         }
 
         initializeApp();

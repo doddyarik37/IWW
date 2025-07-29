@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -43,6 +45,10 @@
             font-size: 1rem;
             box-sizing: border-box;
         }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #fca311;
+        }
         .checkbox-container {
             display: flex;
             align-items: center;
@@ -65,9 +71,14 @@
             font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background: #ffb84d;
         }
         button:disabled {
             background-color: #888;
+            cursor: not-allowed;
         }
         #success-message {
             text-align: center;
@@ -75,17 +86,28 @@
             color: #4caf50;
             display: none;
         }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+        }
     </style>
 </head>
 <body>
     <div class="form-container" id="form-container">
-        <h2>Kirim Ucapanmu!</h2>
-        <form id="ucapan-form">
-            <input type="text" id="nama-input" placeholder="Nama Kamu" required>
-            <textarea id="ucapan-input" rows="4" placeholder="Tulis ucapanmu di sini..." required></textarea>
+        <form id="ucapan-form" aria-labelledby="form-title">
+            <h2 id="form-title">Kirim Ucapanmu!</h2>
+            <label for="nama-input" class="sr-only">Nama Kamu</label>
+            <input type="text" id="nama-input" placeholder="Nama Kamu (opsional)" aria-required="false">
+            <label for="ucapan-input" class="sr-only">Ucapan</label>
+            <textarea id="ucapan-input" rows="4" placeholder="Tulis ucapanmu di sini..." aria-required="true"></textarea>
             <label class="checkbox-container">
-                <input type="checkbox" id="tampilkan-besar-input" checked>
-                Tampilkan di Layar Utama (10 detik)?
+                <input type="checkbox" id="tampilkan-besar-input" checked aria-describedby="tampilkan-desc">
+                <span id="tampilkan-desc">Tampilkan di Layar Utama (10 detik)?</span>
             </label>
             <button type="submit" id="submit-btn">Kirim!</button>
         </form>
@@ -96,8 +118,15 @@
     </div>
 
     <script>
-        const SCRIPT_URL_POST = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
-        
+        const SCRIPT_URL_POST = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL doPost
+        const KATA_FILTER = ["anjing", "babi", "bangsat", "brengsek", "bajingan"];
+
+        function isValidInput(teks) {
+            if (!teks) return true;
+            const teksLower = teks.toLowerCase();
+            return !KATA_FILTER.some(kata => teksLower.includes(kata));
+        }
+
         const ucapanForm = document.getElementById('ucapan-form');
         const submitBtn = document.getElementById('submit-btn');
         const formContainer = document.getElementById('form-container');
@@ -105,34 +134,64 @@
 
         ucapanForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const nama = document.getElementById('nama-input').value || "Anonim";
+            const ucapan = document.getElementById('ucapan-input').value;
+            const tampilkanBesar = document.getElementById('tampilkan-besar-input').checked;
+
+            // Validasi sisi klien
+            if (!ucapan) {
+                Toastify({
+                    text: "Ucapan tidak boleh kosong!",
+                    duration: 3000,
+                    style: { background: "#e53935" }
+                }).showToast();
+                return;
+            }
+            if (nama.length > 50 || ucapan.length > 200) {
+                Toastify({
+                    text: "Nama maksimum 50 karakter, ucapan maksimum 200 karakter.",
+                    duration: 3000,
+                    style: { background: "#e53935" }
+                }).showToast();
+                return;
+            }
+            if (!isValidInput(nama) || !isValidInput(ucapan)) {
+                Toastify({
+                    text: "Input mengandung kata tidak pantas.",
+                    duration: 3000,
+                    style: { background: "#e53935" }
+                }).showToast();
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Mengirim...';
 
-            const data = {
-                nama: document.getElementById('nama-input').value,
-                ucapan: document.getElementById('ucapan-input').value,
-                tampilkanBesar: document.getElementById('tampilkan-besar-input').checked
-            };
-
             try {
-                await fetch(SCRIPT_URL_POST, {
+                const response = await fetch(SCRIPT_URL_POST, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ nama, ucapan, tampilkanBesar })
                 });
-                
-                // Tampilkan pesan sukses dan sembunyikan form
-                formContainer.style.display = 'none';
-                successMessage.style.display = 'block';
-
-                // Tutup jendela setelah 3 detik
-                setTimeout(() => {
-                    window.close();
-                }, 3000);
-
+                const result = await response.json();
+                Toastify({
+                    text: result.pesan,
+                    duration: 3000,
+                    style: { background: result.status === "sukses" ? "#4caf50" : "#e53935" }
+                }).showToast();
+                if (result.status === "sukses") {
+                    formContainer.style.display = 'none';
+                    successMessage.style.display = 'block';
+                    setTimeout(() => window.close(), 3000);
+                } else {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Kirim!';
+                }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Gagal mengirim ucapan. Coba lagi.');
+                Toastify({
+                    text: "Gagal mengirim ucapan: " + error.message,
+                    duration: 3000,
+                    style: { background: "#e53935" }
+                }).showToast();
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Kirim!';
             }
