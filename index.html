@@ -147,13 +147,19 @@
         function applySettings(settings) {
             mainTitle.textContent = settings.JudulUtama || "Interactive Wishing Wall";
             subtitle.textContent = settings.Subtitle || "by IFrame Multimedia";
-            if (settings.URLBackground) {
-                document.body.style.backgroundImage = `url('${settings.URLBackground}')`;
+            
+            const newBgUrl = `url('${settings.URLBackground}')`;
+            if (settings.URLBackground && document.body.style.backgroundImage !== newBgUrl) {
+                document.body.style.backgroundImage = newBgUrl;
             }
-            if (settings.URLMusikLatar) {
+            
+            // PERBAIKAN: Hanya ganti sumber musik jika URL-nya berbeda untuk mencegah reset
+            if (settings.URLMusikLatar && bgMusic.src !== settings.URLMusikLatar) {
                 bgMusic.src = settings.URLMusikLatar;
             }
-            if (settings.URLSuaraEfek) {
+            
+            // PERBAIKAN: Hanya ganti sumber efek suara jika URL-nya berbeda
+            if (settings.URLSuaraEfek && soundEffect.src !== settings.URLSuaraEfek) {
                 soundEffect.src = settings.URLSuaraEfek;
             }
         }
