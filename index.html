@@ -6,7 +6,6 @@
     <title>Dinding Ucapan Interaktif</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Font 'Lobster' digunakan untuk nama -->
     <link href="https://fonts.googleapis.com/css2?family=Lobster&family=Montserrat:wght@700&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -42,38 +41,37 @@
             margin-top: 5px;
         }
         .container { width: 100%; height: 100vh; position: relative; }
-        #featured-ucapan {
+        
+        /* Style untuk slot ucapan featured */
+        .featured-slot {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.5);
             background: rgba(20, 33, 61, 0.8);
-            padding: 50px 70px;
+            padding: 40px;
             border-radius: 25px;
             backdrop-filter: blur(12px);
             border: 2px solid rgba(252, 163, 17, 0.6);
             z-index: 100;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 85%;
-            max-width: 950px;
+            width: 40%;
+            max-width: 500px;
             box-shadow: 0 0 25px 8px rgba(252, 163, 17, 0.3);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #featured-ucapan.show {
-            transform: translate(-50%, -50%) scale(1);
+        .featured-slot.show {
             opacity: 1;
-            visibility: visible;
+            transform: scale(1);
         }
-        #featured-ucapan .nama {
+        .featured-slot .nama {
             font-family: 'Lobster', cursive;
-            font-size: 3.5rem;
+            font-size: 2.5rem;
             color: #fca311;
             margin-bottom: 15px;
             text-shadow: 0 0 10px #fca311;
         }
-        #featured-ucapan .ucapan-text { font-size: 2rem; line-height: 1.6; }
-        .running-text-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .featured-slot .ucapan-text { font-size: 1.5rem; line-height: 1.6; }
+
+        .running-text-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         .running-text-item {
             position: absolute;
             white-space: nowrap;
@@ -83,11 +81,23 @@
             animation: moveRightToLeft linear infinite;
             will-change: transform;
         }
-        #error-notification {
-            position: fixed; top: 0; left: 0; width: 100%;
-            background-color: #e53935; color: white; text-align: center;
-            padding: 12px; z-index: 1000; display: none;
-            font-size: 1rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        #music-button {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #fca311;
+            color: #14213d;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 300;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         @keyframes moveRightToLeft {
             from { transform: translateX(100vw); }
@@ -97,112 +107,126 @@
 </head>
 <body>
     <div class="title-container">
-        <h1 class="main-title">Interactive Wishing Wall</h1>
-        <h2 class="subtitle">by IFrame Multimedia</h2>
+        <h1 class="main-title" id="main-title"></h1>
+        <h2 class="subtitle" id="subtitle"></h2>
     </div>
     <div id="error-notification"></div>
-    <div class="container">
-        <div id="featured-ucapan">
-            <h1 id="featured-nama" class="nama"></h1>
-            <p id="featured-text" class="ucapan-text"></p>
-        </div>
+    <div class="container" id="main-container">
+        <!-- Slot untuk ucapan 15 detik akan dibuat di sini oleh JavaScript -->
         <div class="running-text-container" id="running-text-container"></div>
     </div>
+    <button id="music-button" title="Play/Pause Music">▶️</button>
+    <audio id="background-music" loop></audio>
+    <audio id="sound-effect"></audio>
 
     <script>
-        const BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1504221507732-00153c945043?q=80&w=2070&auto=format&fit=crop";
         const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
         
-        const featuredUcapan = document.getElementById('featured-ucapan');
-        const featuredNama = document.getElementById('featured-nama');
-        const featuredText = document.getElementById('featured-text');
+        const mainContainer = document.getElementById('main-container');
         const runningTextContainer = document.getElementById('running-text-container');
-        const errorNotification = document.getElementById('error-notification');
-        
-        let allUcapan = [];
-        let lastTimestamp = null;
-        
-        // Sistem Jalur untuk Mencegah Tumpukan Fisik
-        const NUM_LANES = 12; 
-        let lanes = new Array(NUM_LANES).fill(0);
+        const mainTitle = document.getElementById('main-title');
+        const subtitle = document.getElementById('subtitle');
+        const bgMusic = document.getElementById('background-music');
+        const soundEffect = document.getElementById('sound-effect');
+        const musicButton = document.getElementById('music-button');
 
-        // >> LOGIKA BARU: Sistem Pelacak untuk Mencegah Spam Visual <<
+        let allUcapan = [];
+        let lastTimestamp = 0;
         let runningTextTracker = new Map();
 
-        function showError(message) {
-            errorNotification.textContent = message;
-            errorNotification.style.display = 'block';
+        // Sistem Slot untuk ucapan featured
+        const featuredSlots = [
+            { inUse: false, top: '15%', left: '5%', transform: 'translate(0, 0)' },
+            { inUse: false, top: '15%', right: '5%', transform: 'translate(0, 0)' },
+            { inUse: false, top: '60%', left: '25%', transform: 'translate(-50%, -50%)' },
+            { inUse: false, top: '60%', right: '25%', transform: 'translate(50%, -50%)' }
+        ];
+
+        // --- FUNGSI-FUNGSI BARU ---
+
+        function applySettings(settings) {
+            mainTitle.textContent = settings.JudulUtama || "Interactive Wishing Wall";
+            subtitle.textContent = settings.Subtitle || "by IFrame Multimedia";
+            if (settings.URLBackground) {
+                document.body.style.backgroundImage = `url('${settings.URLBackground}')`;
+            }
+            if (settings.URLMusikLatar) {
+                bgMusic.src = settings.URLMusikLatar;
+            }
+            if (settings.URLSuaraEfek) {
+                soundEffect.src = settings.URLSuaraEfek;
+            }
         }
 
-        function showFeatured(ucapan) {
-            featuredNama.textContent = ucapan.nama;
-            featuredText.textContent = ucapan.ucapan;
-            featuredUcapan.classList.add('show');
-            confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-            setTimeout(() => {
-                featuredUcapan.classList.remove('show');
-            }, 15000); // Durasi 15 detik
+        function playSoundEffect() {
+            if(soundEffect.src) {
+                soundEffect.currentTime = 0;
+                soundEffect.play().catch(e => console.log("Efek suara diblokir"));
+            }
         }
 
-        function createRunningText(ucapan, laneIndex) {
-            const ucapanKey = ucapan.nama + "::" + ucapan.ucapan; // Kunci unik
+        function showFeaturedInSlot(ucapan) {
+            const freeSlotIndex = featuredSlots.findIndex(slot => !slot.inUse);
+            if (freeSlotIndex === -1) return; // Tidak ada slot kosong
+
+            featuredSlots[freeSlotIndex].inUse = true;
+            const slotConfig = featuredSlots[freeSlotIndex];
+
+            const slotDiv = document.createElement('div');
+            slotDiv.className = 'featured-slot';
+            slotDiv.style.top = slotConfig.top;
+            slotDiv.style.left = slotConfig.left || 'auto';
+            slotDiv.style.right = slotConfig.right || 'auto';
             
-            // Tambah counter di pelacak
+            slotDiv.innerHTML = `<h1 class="nama">${ucapan.nama}</h1><p class="ucapan-text">${ucapan.ucapan}</p>`;
+            mainContainer.appendChild(slotDiv);
+            
+            playSoundEffect();
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+            setTimeout(() => slotDiv.classList.add('show'), 100);
+
+            setTimeout(() => {
+                slotDiv.classList.remove('show');
+                setTimeout(() => {
+                    slotDiv.remove();
+                    featuredSlots[freeSlotIndex].inUse = false; // Bebaskan slot
+                }, 800);
+            }, 15000); // Tampil selama 15 detik
+        }
+
+        // --- FUNGSI-FUNGSI LAMA YANG DIPERBARUI ---
+
+        function createRunningText(ucapan) {
+            const ucapanKey = ucapan.nama + "::" + ucapan.ucapan;
             runningTextTracker.set(ucapanKey, (runningTextTracker.get(ucapanKey) || 0) + 1);
 
             const item = document.createElement('div');
             item.className = 'running-text-item';
             item.textContent = `${ucapan.nama}: ${ucapan.ucapan}`;
-            const topPosition = (laneIndex / NUM_LANES) * 85 + 10;
-            item.style.top = `${topPosition}%`;
+            item.style.top = `${Math.random() * 85 + 10}%`;
             const randomDuration = Math.random() * 15 + 20;
             item.style.animationDuration = `${randomDuration}s`;
             runningTextContainer.appendChild(item);
 
             setTimeout(() => {
                 item.remove();
-                // Kurangi counter di pelacak setelah selesai
                 runningTextTracker.set(ucapanKey, runningTextTracker.get(ucapanKey) - 1);
             }, randomDuration * 1000);
         }
-
+        
         function spawnRandomRunningText() {
             if (allUcapan.length === 0) return;
-
-            // 1. Cari jalur fisik yang kosong
-            let availableLane = -1;
-            const shuffledLanes = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
-            for (const i of shuffledLanes) {
-                if (lanes[i] === 0) {
-                    availableLane = i;
-                    break;
+            let attempts = 0;
+            while (attempts < 10) {
+                const randomIndex = Math.floor(Math.random() * allUcapan.length);
+                const candidateUcapan = allUcapan[randomIndex];
+                const ucapanKey = candidateUcapan.nama + "::" + candidateUcapan.ucapan;
+                if ((runningTextTracker.get(ucapanKey) || 0) < 2) {
+                    createRunningText(candidateUcapan);
+                    return;
                 }
-            }
-
-            if (availableLane !== -1) {
-                // 2. Cari ucapan yang tidak sedang spam (muncul < 2 kali)
-                let attempts = 0;
-                const maxAttempts = allUcapan.length * 2; // Batas percobaan
-                while (attempts < maxAttempts) {
-                    const randomIndex = Math.floor(Math.random() * allUcapan.length);
-                    const candidateUcapan = allUcapan[randomIndex];
-                    const ucapanKey = candidateUcapan.nama + "::" + candidateUcapan.ucapan;
-                    
-                    if ((runningTextTracker.get(ucapanKey) || 0) < 2) {
-                        // Ditemukan! Kunci jalur fisik
-                        lanes[availableLane] = 1; 
-                        
-                        // Buat running text
-                        createRunningText(candidateUcapan, availableLane);
-                        
-                        // Bebaskan jalur fisik setelah beberapa saat
-                        setTimeout(() => {
-                            lanes[availableLane] = 0;
-                        }, 4000); 
-                        return; // Keluar dari fungsi setelah berhasil
-                    }
-                    attempts++;
-                }
+                attempts++;
             }
         }
 
@@ -210,36 +234,42 @@
             try {
                 const response = await fetch(SCRIPT_URL_GET);
                 const result = await response.json();
-                if (result.status === 'sukses' && result.data.length > 0) {
-                    allUcapan = result.data;
-                    const latestUcapan = allUcapan[0];
-                    if (latestUcapan.timestamp !== lastTimestamp && latestUcapan.tampilkanBesar) {
-                        lastTimestamp = latestUcapan.timestamp;
-                        showFeatured(latestUcapan);
+
+                if (result.status === 'sukses') {
+                    // Terapkan pengaturan setiap kali fetch
+                    applySettings(result.pengaturan);
+                    
+                    if (result.data.length > 0) {
+                        allUcapan = result.data;
+                        // Cek semua ucapan baru yang belum ditampilkan
+                        const newFeaturedWishes = allUcapan.filter(ucapan => ucapan.timestamp > lastTimestamp && ucapan.tampilkanBesar);
+                        
+                        if (newFeaturedWishes.length > 0) {
+                            newFeaturedWishes.forEach(wish => showFeaturedInSlot(wish));
+                            // Update timestamp terakhir
+                            lastTimestamp = allUcapan[0].timestamp;
+                        }
                     }
                 }
-                return true;
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
-                return false;
             }
         }
 
         async function initializeApp() {
-            if (BACKGROUND_IMAGE_URL) {
-                document.body.style.backgroundImage = `url('${BACKGROUND_IMAGE_URL}')`;
-            }
-            if (SCRIPT_URL_GET.includes("URL_APPS_SCRIPT_GET_DISINI")) {
-                showError("KESALAHAN KONFIGURASI: URL Google Apps Script belum diatur!");
-                return;
-            }
-            const initialFetchSuccess = await fetchData();
-            if (initialFetchSuccess) {
-                setInterval(spawnRandomRunningText, 2000); 
-                setInterval(fetchData, 10000);
-            } else {
-                showError("Gagal memuat data awal. Coba refresh halaman.");
-            }
+            musicButton.addEventListener('click', () => {
+                if (bgMusic.paused) {
+                    bgMusic.play().catch(e => console.log("Musik diblokir"));
+                    musicButton.textContent = '⏸️';
+                } else {
+                    bgMusic.pause();
+                    musicButton.textContent = '▶️';
+                }
+            });
+            
+            await fetchData(); // Ambil data dan pengaturan awal
+            setInterval(spawnRandomRunningText, 3000);
+            setInterval(fetchData, 10000);
         }
 
         initializeApp();
