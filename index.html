@@ -6,7 +6,8 @@
     <title>Dinding Ucapan Interaktif</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font baru 'Lobster' ditambahkan -->
+    <link href="https://fonts.googleapis.com/css2?family=Lobster&family=Montserrat:wght@700&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,17 +21,25 @@
             overflow: hidden;
             text-align: center;
         }
-        .main-title {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
-            font-size: 2.5rem;
-            color: white;
+        .title-container {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 200;
             text-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+        }
+        .main-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: white;
+        }
+        .subtitle { /* Style untuk subtitle baru */
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 5px;
         }
         .container { width: 100%; height: 100vh; position: relative; }
         #featured-ucapan {
@@ -39,16 +48,18 @@
             left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
             background: rgba(20, 33, 61, 0.8);
-            padding: 40px 60px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(252, 163, 17, 0.5);
+            padding: 50px 70px; /* Diperbesar */
+            border-radius: 25px;
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(252, 163, 17, 0.6);
             z-index: 100;
             opacity: 0;
             visibility: hidden;
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 80%;
-            max-width: 800px;
+            width: 85%; /* Diperbesar */
+            max-width: 950px; /* Diperbesar */
+            /* Efek glowing ditambahkan */
+            box-shadow: 0 0 25px 8px rgba(252, 163, 17, 0.3);
         }
         #featured-ucapan.show {
             transform: translate(-50%, -50%) scale(1);
@@ -56,12 +67,13 @@
             visibility: visible;
         }
         #featured-ucapan .nama {
-            font-family: 'Pacifico', cursive;
-            font-size: 3rem;
+            font-family: 'Lobster', cursive; /* Font diganti */
+            font-size: 3.5rem; /* Ukuran diperbesar */
             color: #fca311;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #fca311; /* Efek shadow pada teks */
         }
-        #featured-ucapan .ucapan-text { font-size: 1.8rem; line-height: 1.5; }
+        #featured-ucapan .ucapan-text { font-size: 2rem; line-height: 1.6; }
         .running-text-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         .running-text-item {
             position: absolute;
@@ -85,7 +97,11 @@
     </style>
 </head>
 <body>
-    <h1 class="main-title">Interactive Wishing Wall</h1>
+    <div class="title-container">
+        <h1 class="main-title">Interactive Wishing Wall</h1>
+        <!-- Subtitle ditambahkan -->
+        <h2 class="subtitle">by IFrame Multimedia</h2>
+    </div>
     <div id="error-notification"></div>
     <div class="container">
         <div id="featured-ucapan">
@@ -107,8 +123,7 @@
         
         let allUcapan = [];
         let lastTimestamp = null;
-        const NUM_LANES = 12;
-        let lanes = new Array(NUM_LANES).fill(0);
+        let activeRunningTexts = 0; // Counter untuk running text aktif
 
         function showError(message) {
             errorNotification.textContent = message;
@@ -119,40 +134,34 @@
             featuredNama.textContent = ucapan.nama;
             featuredText.textContent = ucapan.ucapan;
             featuredUcapan.classList.add('show');
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
             setTimeout(() => {
                 featuredUcapan.classList.remove('show');
-            }, 10000);
+            }, 15000); // Durasi diubah menjadi 15 detik
         }
 
-        function createRunningText(ucapan, laneIndex) {
+        function createRunningText(ucapan) {
+            activeRunningTexts++; // Tambah counter
             const item = document.createElement('div');
             item.className = 'running-text-item';
             item.textContent = `${ucapan.nama}: ${ucapan.ucapan}`;
-            const topPosition = (laneIndex / NUM_LANES) * 85 + 10;
-            item.style.top = `${topPosition}%`;
+            const randomTop = Math.random() * 85 + 10; // Posisi antara 10% dan 95%
+            item.style.top = `${randomTop}%`;
             const randomDuration = Math.random() * 15 + 20;
             item.style.animationDuration = `${randomDuration}s`;
             runningTextContainer.appendChild(item);
-            setTimeout(() => item.remove(), randomDuration * 1000);
+            setTimeout(() => {
+                item.remove();
+                activeRunningTexts--; // Kurangi counter setelah selesai
+            }, randomDuration * 1000);
         }
 
         function spawnRandomRunningText() {
-            if (allUcapan.length === 0) return;
-            let availableLane = -1;
-            const shuffledLanes = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
-            for (const i of shuffledLanes) {
-                if (lanes[i] === 0) {
-                    availableLane = i;
-                    break;
-                }
-            }
-            if (availableLane !== -1) {
-                lanes[availableLane] = 1;
-                const randomIndex = Math.floor(Math.random() * allUcapan.length);
-                createRunningText(allUcapan[randomIndex], availableLane);
-                setTimeout(() => lanes[availableLane] = 0, 4000);
-            }
+            // Batasi maksimal 2 running text bersamaan
+            if (allUcapan.length === 0 || activeRunningTexts >= 2) return;
+            
+            const randomIndex = Math.floor(Math.random() * allUcapan.length);
+            createRunningText(allUcapan[randomIndex]);
         }
 
         async function fetchData() {
@@ -184,8 +193,8 @@
             }
             const initialFetchSuccess = await fetchData();
             if (initialFetchSuccess) {
-                setInterval(spawnRandomRunningText, 2000);
-                setInterval(fetchData, 10000); // Polling setiap 10 detik
+                setInterval(spawnRandomRunningText, 4000); // Munculkan teks baru setiap 4 detik jika ada slot
+                setInterval(fetchData, 10000);
             } else {
                 showError("Gagal memuat data awal. Coba refresh halaman.");
             }
