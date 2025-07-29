@@ -72,38 +72,11 @@
             animation: moveRightToLeft linear infinite;
             will-change: transform;
         }
-        #carousel {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            max-width: 1200px;
-            display: flex;
-            overflow-x: auto;
-            gap: 16px;
-            padding: 16px;
-        }
-        .carousel-item {
-            flex: 0 0 auto;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 10px;
-            padding: 16px;
-            min-width: 200px;
-            max-width: 300px;
-        }
         #error-notification {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background-color: #e53935;
-            color: white;
-            text-align: center;
-            padding: 12px;
-            z-index: 1000;
-            display: none;
-            font-size: 1rem;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: fixed; top: 0; left: 0; width: 100%;
+            background-color: #e53935; color: white; text-align: center;
+            padding: 12px; z-index: 1000; display: none;
+            font-size: 1rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         @keyframes moveRightToLeft {
             from { transform: translateX(100vw); }
@@ -115,23 +88,23 @@
     <h1 class="main-title">Interactive Wishing Wall</h1>
     <div id="error-notification"></div>
     <div class="container">
-        <div id="featured-ucapan" role="alert" aria-live="polite">
+        <div id="featured-ucapan">
             <h1 id="featured-nama" class="nama"></h1>
             <p id="featured-text" class="ucapan-text"></p>
         </div>
         <div class="running-text-container" id="running-text-container"></div>
-        <div id="carousel"></div>
     </div>
 
     <script>
         const BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1504221507732-00153c945043?q=80&w=2070&auto=format&fit=crop";
-        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL Web App /exec
+        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
+        
         const featuredUcapan = document.getElementById('featured-ucapan');
         const featuredNama = document.getElementById('featured-nama');
         const featuredText = document.getElementById('featured-text');
         const runningTextContainer = document.getElementById('running-text-container');
         const errorNotification = document.getElementById('error-notification');
-        const carousel = document.getElementById('carousel');
+        
         let allUcapan = [];
         let lastTimestamp = null;
         const NUM_LANES = 12;
@@ -182,16 +155,6 @@
             }
         }
 
-        function updateCarousel() {
-            if (allUcapan.length === 0) return;
-            carousel.innerHTML = allUcapan.slice(0, 5).map(ucapan => `
-                <div class="carousel-item">
-                    <p class="font-bold">${ucapan.nama}</p>
-                    <p>${ucapan.ucapan}</p>
-                </div>
-            `).join("");
-        }
-
         async function fetchData() {
             try {
                 const response = await fetch(SCRIPT_URL_GET);
@@ -203,14 +166,10 @@
                         lastTimestamp = latestUcapan.timestamp;
                         showFeatured(latestUcapan);
                     }
-                    updateCarousel();
-                    errorNotification.style.display = 'none';
-                    return true;
                 }
-                return false;
+                return true;
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
-                showError("Gagal memuat data. Menggunakan cache...");
                 return false;
             }
         }
@@ -223,10 +182,13 @@
                 showError("KESALAHAN KONFIGURASI: URL Google Apps Script belum diatur!");
                 return;
             }
-            await fetchData();
-            setInterval(spawnRandomRunningText, 2000);
-            setInterval(fetchData, 10000); // Polling setiap 10 detik
-            setInterval(updateCarousel, 10000);
+            const initialFetchSuccess = await fetchData();
+            if (initialFetchSuccess) {
+                setInterval(spawnRandomRunningText, 2000);
+                setInterval(fetchData, 10000); // Polling setiap 10 detik
+            } else {
+                showError("Gagal memuat data awal. Coba refresh halaman.");
+            }
         }
 
         initializeApp();
