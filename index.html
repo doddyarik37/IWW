@@ -105,24 +105,6 @@
             font-weight: bold;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        button {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border: none;
-            border-radius: 10px;
-            background: #fca311;
-            color: #14213d;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        button:hover {
-            background: #ffb84d;
-        }
         @keyframes moveRightToLeft {
             from { transform: translateX(100vw); }
             to { transform: translateX(-150%); }
@@ -140,11 +122,10 @@
         <div class="running-text-container" id="running-text-container"></div>
         <div id="carousel"></div>
     </div>
-    <button onclick="showNextUcapan()">Ucapan Berikutnya</button>
 
     <script>
         const BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1504221507732-00153c945043?q=80&w=2070&auto=format&fit=crop";
-        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL doGet
+        const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL Web App /exec
         const featuredUcapan = document.getElementById('featured-ucapan');
         const featuredNama = document.getElementById('featured-nama');
         const featuredText = document.getElementById('featured-text');
@@ -169,13 +150,6 @@
             setTimeout(() => {
                 featuredUcapan.classList.remove('show');
             }, 10000);
-        }
-
-        function showNextUcapan() {
-            if (allUcapan.length > 0) {
-                const randomUcapan = allUcapan[Math.floor(Math.random() * allUcapan.length)];
-                showFeatured(randomUcapan);
-            }
         }
 
         function createRunningText(ucapan, laneIndex) {
@@ -251,7 +225,7 @@
             }
             await fetchData();
             setInterval(spawnRandomRunningText, 2000);
-            setInterval(fetchData, 30000);
+            setInterval(fetchData, 10000); // Polling setiap 10 detik
             setInterval(updateCarousel, 10000);
         }
 

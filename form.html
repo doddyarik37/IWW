@@ -118,7 +118,7 @@
     </div>
 
     <script>
-        const SCRIPT_URL_POST = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL doPost
+        const SCRIPT_URL_POST = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec"; // Ganti dengan URL Web App /exec
         const KATA_FILTER = ["anjing", "babi", "bangsat", "brengsek", "bajingan"];
 
         function isValidInput(teks) {
@@ -181,7 +181,14 @@
                 if (result.status === "sukses") {
                     formContainer.style.display = 'none';
                     successMessage.style.display = 'block';
-                    setTimeout(() => window.close(), 3000);
+                    setTimeout(() => {
+                        formContainer.style.display = 'block';
+                        successMessage.style.display = 'none';
+                        document.getElementById('ucapan-input').value = '';
+                        document.getElementById('nama-input').value = '';
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Kirim!';
+                    }, 3000); // Refresh form setelah 3 detik
                 } else {
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Kirim!';
