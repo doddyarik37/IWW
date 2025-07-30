@@ -50,8 +50,6 @@
             backdrop-filter: blur(12px);
             border: 2px solid rgba(252, 163, 17, 0.6);
             z-index: 100;
-            width: 40%;
-            max-width: 500px;
             box-shadow: 0 0 25px 8px rgba(252, 163, 17, 0.3);
             opacity: 0;
             transform: scale(0.5);
@@ -59,7 +57,7 @@
         }
         .featured-slot.show {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) translate(var(--tx, 0), var(--ty, 0));
         }
         .featured-slot .nama {
             font-family: 'Lobster', cursive;
@@ -72,20 +70,16 @@
 
         .running-text-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         
-        /* Gaya Baru untuk Running Text Item */
         .running-text-item {
             position: absolute;
             white-space: nowrap;
-            font-size: 1.5rem; /* Ukuran font diperbesar agar mudah dibaca */
-            color: #ffffff; /* Warna dibuat putih solid agar kontras */
-            
-            /* Ini bagian box-nya */
-            background: rgba(0, 0, 0, 0.5); /* Latar belakang semi-transparan */
-            padding: 12px 24px; /* Padding agar ada ruang di dalam box */
-            border-radius: 50px; /* Dibuat melengkung seperti kapsul */
-            backdrop-filter: blur(5px); /* Efek blur pada background di belakangnya */
+            font-size: 1.5rem;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px 24px;
+            border-radius: 50px;
+            backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            
             animation: moveRightToLeft linear infinite;
             will-change: transform;
         }
@@ -142,17 +136,19 @@
         let lastTimestamp = 0;
         let runningTextTracker = new Map();
 
-        const featuredSlots = [
-            { inUse: false, top: '15%', left: '5%' },
-            { inUse: false, top: '15%', right: '5%' },
-            { inUse: false, top: '60%', left: '25%' },
-            { inUse: false, top: '60%', right: '25%' }
+        // --- LOGIKA BARU UNTUK SLOT FEATURED ---
+        let isFirstFeaturedShown = false;
+        const centerSlotConfig = { isCenter: true, top: '50%', left: '50%', width: '80%', maxWidth: '800px', namaSize: '3.5rem', ucapanSize: '2rem' };
+        const otherSlots = [
+            { inUse: false, top: '15%', left: '5%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' },
+            { inUse: false, top: '15%', right: '5%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' },
+            { inUse: false, top: '65%', left: '10%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' },
+            { inUse: false, top: '65%', right: '10%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' }
         ];
 
-        // --- LOGIKA BARU UNTUK RUNNING TEXT ---
-        const NUM_LANES = 15; // Jumlah jalur diperbanyak
-        const RUNNING_TEXT_SPEED = 35; // Kecepatan seragam dalam detik
-        let lanes = new Array(NUM_LANES).fill(0); // 0 berarti jalur bebas
+        const NUM_LANES = 15;
+        const RUNNING_TEXT_SPEED = 35;
+        let lanes = new Array(NUM_LANES).fill(0);
 
         function applySettings(settings) {
             mainTitle.textContent = settings.JudulUtama || "Interactive Wishing Wall";
@@ -177,23 +173,38 @@
         }
 
         function showFeaturedInSlot(ucapan) {
-            const freeSlotIndex = featuredSlots.findIndex(slot => !slot.inUse);
-            if (freeSlotIndex === -1) return;
+            let slotConfig;
+            let slotIndex = -1;
 
-            featuredSlots[freeSlotIndex].inUse = true;
-            const slotConfig = featuredSlots[freeSlotIndex];
+            if (!isFirstFeaturedShown) {
+                slotConfig = centerSlotConfig;
+                isFirstFeaturedShown = true;
+            } else {
+                slotIndex = otherSlots.findIndex(s => !s.inUse);
+                if (slotIndex === -1) return; // Tidak ada slot lain yang tersedia
+                otherSlots[slotIndex].inUse = true;
+                slotConfig = otherSlots[slotIndex];
+            }
 
             const slotDiv = document.createElement('div');
             slotDiv.className = 'featured-slot';
             slotDiv.style.top = slotConfig.top;
             slotDiv.style.left = slotConfig.left || 'auto';
             slotDiv.style.right = slotConfig.right || 'auto';
+            slotDiv.style.width = slotConfig.width;
+            slotDiv.style.maxWidth = slotConfig.maxWidth;
             
-            slotDiv.innerHTML = `<h1 class="nama">${ucapan.nama}</h1><p class="ucapan-text">${ucapan.ucapan}</p>`;
+            // Atur transform untuk posisi tengah
+            if (slotConfig.isCenter) {
+                slotDiv.style.setProperty('--tx', '-50%');
+                slotDiv.style.setProperty('--ty', '-50%');
+            }
+            
+            slotDiv.innerHTML = `<h1 class="nama" style="font-size: ${slotConfig.namaSize};">${ucapan.nama}</h1><p class="ucapan-text" style="font-size: ${slotConfig.ucapanSize};">${ucapan.ucapan}</p>`;
             mainContainer.appendChild(slotDiv);
             
             playSoundEffect();
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
 
             setTimeout(() => slotDiv.classList.add('show'), 100);
 
@@ -201,7 +212,9 @@
                 slotDiv.classList.remove('show');
                 setTimeout(() => {
                     slotDiv.remove();
-                    featuredSlots[freeSlotIndex].inUse = false;
+                    if (slotIndex !== -1) {
+                        otherSlots[slotIndex].inUse = false; // Bebaskan slot jika bukan slot tengah
+                    }
                 }, 800);
             }, 15000);
         }
@@ -214,7 +227,7 @@
             item.className = 'running-text-item';
             item.textContent = `${ucapan.nama}: ${ucapan.ucapan}`;
             item.style.top = `${(laneIndex / NUM_LANES) * 85 + 10}%`;
-            item.style.animationDuration = `${RUNNING_TEXT_SPEED}s`; // Kecepatan disamakan
+            item.style.animationDuration = `${RUNNING_TEXT_SPEED}s`;
             runningTextContainer.appendChild(item);
 
             setTimeout(() => {
@@ -225,8 +238,6 @@
         
         function spawnRandomRunningText() {
             if (allUcapan.length === 0) return;
-
-            // 1. Cari jalur fisik yang kosong
             let availableLane = -1;
             const shuffledLanes = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
             for (const i of shuffledLanes) {
@@ -237,19 +248,17 @@
             }
 
             if (availableLane !== -1) {
-                // 2. Cari ucapan yang tidak sedang spam
                 let attempts = 0;
                 while (attempts < 10) {
                     const randomIndex = Math.floor(Math.random() * allUcapan.length);
                     const candidateUcapan = allUcapan[randomIndex];
                     const ucapanKey = candidateUcapan.nama + "::" + candidateUcapan.ucapan;
                     if ((runningTextTracker.get(ucapanKey) || 0) < 2) {
-                        lanes[availableLane] = 1; // Kunci jalur
+                        lanes[availableLane] = 1;
                         createRunningText(candidateUcapan, availableLane);
-                        // Bebaskan jalur setelah beberapa saat untuk mencegah tabrakan
                         setTimeout(() => {
                             lanes[availableLane] = 0;
-                        }, 5000); // Jeda 5 detik
+                        }, 5000);
                         return;
                     }
                     attempts++;
