@@ -42,7 +42,6 @@
         }
         .container { width: 100%; height: 100vh; position: relative; }
         
-        /* Style untuk slot ucapan featured */
         .featured-slot {
             position: fixed;
             background: rgba(20, 33, 61, 0.8);
@@ -72,15 +71,25 @@
         .featured-slot .ucapan-text { font-size: 1.5rem; line-height: 1.6; }
 
         .running-text-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        
+        /* Gaya Baru untuk Running Text Item */
         .running-text-item {
             position: absolute;
             white-space: nowrap;
-            font-size: 1.5rem;
-            color: rgba(224, 224, 224, 0.8);
-            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+            font-size: 1.5rem; /* Ukuran font diperbesar agar mudah dibaca */
+            color: #ffffff; /* Warna dibuat putih solid agar kontras */
+            
+            /* Ini bagian box-nya */
+            background: rgba(0, 0, 0, 0.5); /* Latar belakang semi-transparan */
+            padding: 12px 24px; /* Padding agar ada ruang di dalam box */
+            border-radius: 50px; /* Dibuat melengkung seperti kapsul */
+            backdrop-filter: blur(5px); /* Efek blur pada background di belakangnya */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            
             animation: moveRightToLeft linear infinite;
             will-change: transform;
         }
+
         #music-button {
             position: fixed;
             bottom: 20px;
@@ -112,7 +121,6 @@
     </div>
     <div id="error-notification"></div>
     <div class="container" id="main-container">
-        <!-- Slot untuk ucapan 15 detik akan dibuat di sini oleh JavaScript -->
         <div class="running-text-container" id="running-text-container"></div>
     </div>
     <button id="music-button" title="Play/Pause Music">▶️</button>
@@ -134,31 +142,28 @@
         let lastTimestamp = 0;
         let runningTextTracker = new Map();
 
-        // Sistem Slot untuk ucapan featured
         const featuredSlots = [
-            { inUse: false, top: '15%', left: '5%', transform: 'translate(0, 0)' },
-            { inUse: false, top: '15%', right: '5%', transform: 'translate(0, 0)' },
-            { inUse: false, top: '60%', left: '25%', transform: 'translate(-50%, -50%)' },
-            { inUse: false, top: '60%', right: '25%', transform: 'translate(50%, -50%)' }
+            { inUse: false, top: '15%', left: '5%' },
+            { inUse: false, top: '15%', right: '5%' },
+            { inUse: false, top: '60%', left: '25%' },
+            { inUse: false, top: '60%', right: '25%' }
         ];
 
-        // --- FUNGSI-FUNGSI BARU ---
+        // --- LOGIKA BARU UNTUK RUNNING TEXT ---
+        const NUM_LANES = 15; // Jumlah jalur diperbanyak
+        const RUNNING_TEXT_SPEED = 35; // Kecepatan seragam dalam detik
+        let lanes = new Array(NUM_LANES).fill(0); // 0 berarti jalur bebas
 
         function applySettings(settings) {
             mainTitle.textContent = settings.JudulUtama || "Interactive Wishing Wall";
             subtitle.textContent = settings.Subtitle || "by IFrame Multimedia";
-            
             const newBgUrl = `url('${settings.URLBackground}')`;
             if (settings.URLBackground && document.body.style.backgroundImage !== newBgUrl) {
                 document.body.style.backgroundImage = newBgUrl;
             }
-            
-            // PERBAIKAN: Hanya ganti sumber musik jika URL-nya berbeda untuk mencegah reset
             if (settings.URLMusikLatar && bgMusic.src !== settings.URLMusikLatar) {
                 bgMusic.src = settings.URLMusikLatar;
             }
-            
-            // PERBAIKAN: Hanya ganti sumber efek suara jika URL-nya berbeda
             if (settings.URLSuaraEfek && soundEffect.src !== settings.URLSuaraEfek) {
                 soundEffect.src = settings.URLSuaraEfek;
             }
@@ -173,7 +178,7 @@
 
         function showFeaturedInSlot(ucapan) {
             const freeSlotIndex = featuredSlots.findIndex(slot => !slot.inUse);
-            if (freeSlotIndex === -1) return; // Tidak ada slot kosong
+            if (freeSlotIndex === -1) return;
 
             featuredSlots[freeSlotIndex].inUse = true;
             const slotConfig = featuredSlots[freeSlotIndex];
@@ -196,43 +201,59 @@
                 slotDiv.classList.remove('show');
                 setTimeout(() => {
                     slotDiv.remove();
-                    featuredSlots[freeSlotIndex].inUse = false; // Bebaskan slot
+                    featuredSlots[freeSlotIndex].inUse = false;
                 }, 800);
-            }, 15000); // Tampil selama 15 detik
+            }, 15000);
         }
 
-        // --- FUNGSI-FUNGSI LAMA YANG DIPERBARUI ---
-
-        function createRunningText(ucapan) {
+        function createRunningText(ucapan, laneIndex) {
             const ucapanKey = ucapan.nama + "::" + ucapan.ucapan;
             runningTextTracker.set(ucapanKey, (runningTextTracker.get(ucapanKey) || 0) + 1);
 
             const item = document.createElement('div');
             item.className = 'running-text-item';
             item.textContent = `${ucapan.nama}: ${ucapan.ucapan}`;
-            item.style.top = `${Math.random() * 85 + 10}%`;
-            const randomDuration = Math.random() * 15 + 20;
-            item.style.animationDuration = `${randomDuration}s`;
+            item.style.top = `${(laneIndex / NUM_LANES) * 85 + 10}%`;
+            item.style.animationDuration = `${RUNNING_TEXT_SPEED}s`; // Kecepatan disamakan
             runningTextContainer.appendChild(item);
 
             setTimeout(() => {
                 item.remove();
                 runningTextTracker.set(ucapanKey, runningTextTracker.get(ucapanKey) - 1);
-            }, randomDuration * 1000);
+            }, RUNNING_TEXT_SPEED * 1000);
         }
         
         function spawnRandomRunningText() {
             if (allUcapan.length === 0) return;
-            let attempts = 0;
-            while (attempts < 10) {
-                const randomIndex = Math.floor(Math.random() * allUcapan.length);
-                const candidateUcapan = allUcapan[randomIndex];
-                const ucapanKey = candidateUcapan.nama + "::" + candidateUcapan.ucapan;
-                if ((runningTextTracker.get(ucapanKey) || 0) < 2) {
-                    createRunningText(candidateUcapan);
-                    return;
+
+            // 1. Cari jalur fisik yang kosong
+            let availableLane = -1;
+            const shuffledLanes = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
+            for (const i of shuffledLanes) {
+                if (lanes[i] === 0) {
+                    availableLane = i;
+                    break;
                 }
-                attempts++;
+            }
+
+            if (availableLane !== -1) {
+                // 2. Cari ucapan yang tidak sedang spam
+                let attempts = 0;
+                while (attempts < 10) {
+                    const randomIndex = Math.floor(Math.random() * allUcapan.length);
+                    const candidateUcapan = allUcapan[randomIndex];
+                    const ucapanKey = candidateUcapan.nama + "::" + candidateUcapan.ucapan;
+                    if ((runningTextTracker.get(ucapanKey) || 0) < 2) {
+                        lanes[availableLane] = 1; // Kunci jalur
+                        createRunningText(candidateUcapan, availableLane);
+                        // Bebaskan jalur setelah beberapa saat untuk mencegah tabrakan
+                        setTimeout(() => {
+                            lanes[availableLane] = 0;
+                        }, 5000); // Jeda 5 detik
+                        return;
+                    }
+                    attempts++;
+                }
             }
         }
 
@@ -242,17 +263,12 @@
                 const result = await response.json();
 
                 if (result.status === 'sukses') {
-                    // Terapkan pengaturan setiap kali fetch
                     applySettings(result.pengaturan);
-                    
                     if (result.data.length > 0) {
                         allUcapan = result.data;
-                        // Cek semua ucapan baru yang belum ditampilkan
                         const newFeaturedWishes = allUcapan.filter(ucapan => ucapan.timestamp > lastTimestamp && ucapan.tampilkanBesar);
-                        
                         if (newFeaturedWishes.length > 0) {
                             newFeaturedWishes.forEach(wish => showFeaturedInSlot(wish));
-                            // Update timestamp terakhir
                             lastTimestamp = allUcapan[0].timestamp;
                         }
                     }
@@ -273,8 +289,8 @@
                 }
             });
             
-            await fetchData(); // Ambil data dan pengaturan awal
-            setInterval(spawnRandomRunningText, 3000);
+            await fetchData();
+            setInterval(spawnRandomRunningText, 2000);
             setInterval(fetchData, 10000);
         }
 
