@@ -52,12 +52,14 @@
             z-index: 100;
             box-shadow: 0 0 25px 8px rgba(252, 163, 17, 0.3);
             opacity: 0;
+            /* Menggunakan transform-origin untuk animasi yang lebih baik */
+            transform-origin: center center;
             transform: scale(0.5);
             transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .featured-slot.show {
             opacity: 1;
-            transform: scale(1) translate(var(--tx, 0), var(--ty, 0));
+            transform: scale(1);
         }
         .featured-slot .nama {
             font-family: 'Lobster', cursive;
@@ -102,30 +104,6 @@
             align-items: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
-        
-        /* Gaya untuk QR Code */
-        #qr-code-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 300;
-            text-align: center;
-        }
-        #qr-code-container img {
-            width: 140px;
-            height: 140px;
-            border: 5px solid white;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
-            display: block;
-        }
-        #qr-code-container p {
-            color: white;
-            font-weight: bold;
-            margin-top: 8px;
-            text-shadow: 0 0 5px black;
-        }
-
         @keyframes moveRightToLeft {
             from { transform: translateX(100vw); }
             to { transform: translateX(-150%); }
@@ -141,21 +119,13 @@
     <div class="container" id="main-container">
         <div class="running-text-container" id="running-text-container"></div>
     </div>
-
-    <!-- Tombol Musik dan QR Code dipindahkan ke sini -->
     <button id="music-button" title="Play/Pause Music">▶️</button>
-    <div id="qr-code-container" style="display: none;">
-        <img id="qr-code-img" alt="Scan untuk Kirim Ucapan">
-        <p>Kirim Ucapan!</p>
-    </div>
-
     <audio id="background-music" loop></audio>
     <audio id="sound-effect"></audio>
 
     <script>
         const SCRIPT_URL_GET = "https://script.google.com/macros/s/AKfycbx4l0obku8JnwGX3VnkvvS8tdFvsXvMJHC2tRaQu5VfBhXtIDZsaG9WLTMjsmyvtI2i/exec";
         
-        // Menambahkan elemen QR Code
         const mainContainer = document.getElementById('main-container');
         const runningTextContainer = document.getElementById('running-text-container');
         const mainTitle = document.getElementById('main-title');
@@ -163,20 +133,20 @@
         const bgMusic = document.getElementById('background-music');
         const soundEffect = document.getElementById('sound-effect');
         const musicButton = document.getElementById('music-button');
-        const qrCodeContainer = document.getElementById('qr-code-container');
-        const qrCodeImg = document.getElementById('qr-code-img');
 
         let allUcapan = [];
         let lastTimestamp = 0;
         let runningTextTracker = new Map();
 
-        let isFirstFeaturedShown = false;
-        const centerSlotConfig = { isCenter: true, top: '50%', left: '50%', width: '80%', maxWidth: '800px', namaSize: '3.5rem', ucapanSize: '2rem' };
+        // --- LOGIKA BARU UNTUK SLOT FEATURED ---
+        const centerSlot = { 
+            inUse: false, config: { top: '50%', left: '50%', width: '80%', maxWidth: '800px', namaSize: '3.5rem', ucapanSize: '2rem', transform: 'translate(-50%, -50%)' } 
+        };
         const otherSlots = [
-            { inUse: false, top: '15%', left: '5%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' },
-            { inUse: false, top: '15%', right: '5%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' },
-            { inUse: false, top: '65%', left: '10%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' },
-            { inUse: false, top: '65%', right: '10%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' }
+            { inUse: false, config: { top: '15%', left: '5%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' } },
+            { inUse: false, config: { top: '15%', right: '5%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' } },
+            { inUse: false, config: { top: '65%', left: '10%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' } },
+            { inUse: false, config: { top: '65%', right: '10%', width: '40%', maxWidth: '500px', namaSize: '2.5rem', ucapanSize: '1.5rem' } }
         ];
 
         const NUM_LANES = 15;
@@ -196,13 +166,6 @@
             if (settings.URLSuaraEfek && soundEffect.src !== settings.URLSuaraEfek) {
                 soundEffect.src = settings.URLSuaraEfek;
             }
-            // Logika untuk menampilkan QR Code
-            if (settings.URLQRCode) {
-                qrCodeImg.src = settings.URLQRCode;
-                qrCodeContainer.style.display = 'block';
-            } else {
-                qrCodeContainer.style.display = 'none';
-            }
         }
 
         function playSoundEffect() {
@@ -213,31 +176,36 @@
         }
 
         function showFeaturedInSlot(ucapan) {
-            let slotConfig;
+            let slotToUse = null;
             let slotIndex = -1;
 
-            if (!isFirstFeaturedShown) {
-                slotConfig = centerSlotConfig;
-                isFirstFeaturedShown = true;
+            // Prioritaskan slot tengah jika kosong
+            if (!centerSlot.inUse) {
+                slotToUse = centerSlot;
             } else {
+                // Cari slot lain yang kosong
                 slotIndex = otherSlots.findIndex(s => !s.inUse);
-                if (slotIndex === -1) return;
-                otherSlots[slotIndex].inUse = true;
-                slotConfig = otherSlots[slotIndex];
+                if (slotIndex !== -1) {
+                    slotToUse = otherSlots[slotIndex];
+                } else {
+                    return; // Semua slot penuh, jangan tampilkan
+                }
             }
+
+            slotToUse.inUse = true; // Tandai slot sedang dipakai
+            const slotConfig = slotToUse.config;
 
             const slotDiv = document.createElement('div');
             slotDiv.className = 'featured-slot';
-            slotDiv.style.top = slotConfig.top;
-            slotDiv.style.left = slotConfig.left || 'auto';
-            slotDiv.style.right = slotConfig.right || 'auto';
-            slotDiv.style.width = slotConfig.width;
-            slotDiv.style.maxWidth = slotConfig.maxWidth;
-            
-            if (slotConfig.isCenter) {
-                slotDiv.style.setProperty('--tx', '-50%');
-                slotDiv.style.setProperty('--ty', '-50%');
-            }
+            // Terapkan semua konfigurasi dari objek
+            Object.assign(slotDiv.style, {
+                top: slotConfig.top,
+                left: slotConfig.left || 'auto',
+                right: slotConfig.right || 'auto',
+                width: slotConfig.width,
+                maxWidth: slotConfig.maxWidth,
+                transform: slotConfig.transform || 'none'
+            });
             
             slotDiv.innerHTML = `<h1 class="nama" style="font-size: ${slotConfig.namaSize};">${ucapan.nama}</h1><p class="ucapan-text" style="font-size: ${slotConfig.ucapanSize};">${ucapan.ucapan}</p>`;
             mainContainer.appendChild(slotDiv);
@@ -251,9 +219,7 @@
                 slotDiv.classList.remove('show');
                 setTimeout(() => {
                     slotDiv.remove();
-                    if (slotIndex !== -1) {
-                        otherSlots[slotIndex].inUse = false;
-                    }
+                    slotToUse.inUse = false; // Bebaskan slot setelah selesai
                 }, 800);
             }, 15000);
         }
